@@ -16,6 +16,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.chart.XYChart.Series;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.BorderPane;
@@ -35,11 +36,8 @@ public class Visualizer extends Application {
 
 	NumberAxis yAxis;
 	NumberAxis xAxis;
-	
-	SpinnerValueFactory<Integer> svfStart = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1, 0);
-	SpinnerValueFactory<Integer> svfEnd = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1, 0);
-	Spinner<Integer> startSpinner = new Spinner<Integer>(svfStart);
-	Spinner<Integer> endSpinner = new Spinner<Integer>(svfEnd);
+	Spinner<Integer> startSpinner = new Spinner<Integer>(0,Integer.MAX_VALUE,0);
+	Spinner<Integer> endSpinner = new Spinner<Integer>(1,Integer.MAX_VALUE,1);
 
 	public static void main(String[] args) {
 		launch(args);
@@ -60,12 +58,17 @@ public class Visualizer extends Application {
 		
 //		BorderPane.setAlignment(pickerBox, Pos.TOP_CENTER);
 //	    BorderPane.setMargin(pickerBox, new Insets(12,12,12,12));
+		Label startLabel = new Label("Start:");
+		Label endLabel = new Label("End:");
+		
+		
 		HBox.setMargin(startSpinner, new Insets(12, 12, 12, 12));
 		HBox.setMargin(endSpinner, new Insets(12, 12, 12, 12));
 		startSpinner.setEditable(true);
 		endSpinner.setEditable(true);
+		startSpinner.getValueFactory().setValue(1);
 		spinnerBox.setAlignment(Pos.CENTER);
-		spinnerBox.getChildren().addAll(startSpinner, endSpinner);
+		spinnerBox.getChildren().addAll(startLabel, startSpinner, endLabel, endSpinner);
 
 		ObservableList<String> options = FXCollections.observableArrayList("Voltage", "Charging current",
 				"Discharging current", "Power", "remaining Ah", "Percentage (SOC)", "Temperature", "Cell Voltage");
@@ -97,13 +100,17 @@ public class Visualizer extends Application {
 		bPane.setTop(spinnerBox);
 		bPane.setCenter(lineChart);
 		stage.setScene(new Scene(bPane, 300, 400));
-
-		csvFile = new File("C:\\Users\\Kuehner\\Downloads\\Xiaoxia.csv");
+		
+		
+		csvFile = new File("/Users/justin/Downloads/Xiaoxia.csv");
 		loadCSV();
 		series.setName(csvFile.getName().replace(".csv", ""));
+		startSpinner.getValueFactory().setValue(1);
+		endSpinner.getValueFactory().setValue(csvParser.dataArray.size());
 		reloadData();
 		updateBounds();
-		updateValueFactory(false, 0);
+		
+		
 
 		btOpen.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent event) {
@@ -111,6 +118,8 @@ public class Visualizer extends Application {
 				if (csvFile != null) {
 					loadCSV();
 					series.setName(csvFile.getName().replace(".csv", ""));
+					startSpinner.getValueFactory().setValue(1);
+					endSpinner.getValueFactory().setValue(csvParser.dataArray.size());
 					reloadData();
 				}
 			}
@@ -126,11 +135,32 @@ public class Visualizer extends Application {
 		});
 
 		startSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
-			updateValueFactory(true, newValue);
+			System.out.println("startSpinner");
+			int value = newValue;
+			if(newValue > csvParser.dataArray.size()-1) {
+				value = csvParser.dataArray.size()-1;
+			}
+			if(newValue < 0) {
+				value = 0;
+			}
+			startSpinner.getValueFactory().setValue(value);
+			reloadData();
+			updateBounds();
 		});
 
 		endSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
-			updateValueFactory(false, newValue);
+			System.out.println("endSpinner");
+			int value = newValue;
+			if(newValue > csvParser.dataArray.size()-1) {
+				value = csvParser.dataArray.size()-1;
+			}
+			if(newValue < 0) {
+				value = 0;
+			}
+			
+			endSpinner.getValueFactory().setValue(value);
+			reloadData();
+			updateBounds();
 		});
 	}
 
@@ -159,14 +189,14 @@ public class Visualizer extends Application {
 		switch (graphTypeCB.getValue()) {
 		case "Voltage":
 			selectorCB.setVisible(false);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData().add(new XYChart.Data<Number, Number>(i, csvParser.dataArray.get(i).getTotalVoltage()));
 			}
 
 			break;
 		case "Charging current":
 			selectorCB.setVisible(false);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData()
 						.add(new XYChart.Data<Number, Number>(i, csvParser.dataArray.get(i).getChargingCurrent()));
 			}
@@ -174,7 +204,7 @@ public class Visualizer extends Application {
 			break;
 		case "Discharging current":
 			selectorCB.setVisible(false);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData()
 						.add(new XYChart.Data<Number, Number>(i, csvParser.dataArray.get(i).getDischargingCurrent()));
 			}
@@ -182,7 +212,7 @@ public class Visualizer extends Application {
 			break;
 		case "Power":
 			selectorCB.setVisible(false);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData()
 						.add(new XYChart.Data<Number, Number>(i, csvParser.dataArray.get(i).getDischargingCurrent()
 								* csvParser.dataArray.get(i).getTotalVoltage()));
@@ -191,21 +221,21 @@ public class Visualizer extends Application {
 			break;
 		case "remaining Ah":
 			selectorCB.setVisible(false);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData().add(new XYChart.Data<Number, Number>(i, csvParser.dataArray.get(i).getRemainingAh()));
 			}
 
 			break;
 		case "Percentage (SOC)":
 			selectorCB.setVisible(false);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData().add(new XYChart.Data<Number, Number>(i, csvParser.dataArray.get(i).getSoc()));
 			}
 
 			break;
 		case "Temperature":
 			reloadSelector(csvParser.temperatureCount);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData().add(new XYChart.Data<Number, Number>(i,
 						csvParser.dataArray.get(i).getTemperature(selectorCB.getValue() - 1)));
 			}
@@ -213,7 +243,7 @@ public class Visualizer extends Application {
 			break;
 		case "Cell Voltage":
 			reloadSelector(csvParser.cellCount);
-			for (int i = 0; i < csvParser.dataArray.size(); i++) {
+			for (int i = startSpinner.getValueFactory().getValue(); i < endSpinner.getValueFactory().getValue(); i++) {
 				series.getData().add(new XYChart.Data<Number, Number>(i,
 						csvParser.dataArray.get(i).getVoltage(selectorCB.getValue() - 1)));
 			}
@@ -240,21 +270,6 @@ public class Visualizer extends Application {
 			}
 			selectorCB.setValue(1);
 		}
-	}
-	
-	void updateValueFactory(Boolean isStart, int value) {
-		System.out.println("UpdateValueFactory: " + value);
-		if(isStart) {
-			startSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, csvParser.dataArray.size()-1));
-			startSpinner.getValueFactory().setValue(value+1);
-			if(value >= endSpinner.getValue()) {
-				endSpinner.getValueFactory().setValue(startSpinner.getValue()+1);
-				System.out.println("EndValue: " + endSpinner.getValue());
-			}
-			return;
-		}
-		endSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, csvParser.dataArray.size()));
-		endSpinner.getValueFactory().setValue(value+1);
 	}
 
 	void updateBounds() {
@@ -304,6 +319,15 @@ public class Visualizer extends Application {
 		default:
 			System.out.println("Not found: " + graphTypeCB.getValue());
 		}
+		
+		final NumberAxis xAxis = (NumberAxis) lineChart.getXAxis();
+		xAxis.setAutoRanging(false);
+		xAxis.setLowerBound(startSpinner.getValueFactory().getValue());
+		xAxis.setUpperBound(endSpinner.getValueFactory().getValue());
+		int tickUnit = (int) ((endSpinner.getValueFactory().getValue() - startSpinner.getValueFactory().getValue()) / 30.0);
+		xAxis.setTickUnit(tickUnit);
+		
+		
 	}
 
 }
